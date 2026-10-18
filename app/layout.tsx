@@ -13,6 +13,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const credits = user ? await getBalance(user.id) : null;
   return (
     <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body>
         <header className="topbar">
           <Link href="/" className="brand">
