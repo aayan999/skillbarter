@@ -89,14 +89,16 @@ export async function acceptBooking(sessionId: number, providerId: number) {
   if (s.status !== "requested") return { error: `Session is already ${s.status}.`, status: 400 };
   // Atomic: status flip + credit reservation commit together; a concurrent
   // accept finds status != 'requested' and reserves nothing.
+  let conflict = false;
   await withTx(async (q) => {
     const flipped = await q(
       "UPDATE sessions SET status = 'accepted', updated_at = now() WHERE id = $1 AND status = 'requested' RETURNING id",
       [sessionId]
     );
-    if (!flipped.length) throw new Error("Session is no longer requested.");
+    if (!flipped.length) { conflict = true; return; }
     await reserveCreditsQ(q, s.seeker_id, sessionId, Number(s.credits)); // throws InsufficientCreditsError -> rolls back
   });
+  if (conflict) return { error: "Session is no longer requested.", status: 409 };
   await notify(s.seeker_id, "booking_accepted", `Your booking for "${s.skill_label}" was accepted. Chat is now open.`, `/sessions/${sessionId}`);
   return { ok: true };
 }
@@ -106,7 +108,12 @@ export async function rejectBooking(sessionId: number, providerId: number) {
   const s = await getSession(sessionId);
   if (!s || s.provider_id !== providerId) return { error: "Session not found.", status: 404 };
   if (s.status !== "requested") return { error: `Session is already ${s.status}.`, status: 400 };
-  await query("UPDATE sessions SET status = 'rejected', updated_at = now() WHERE id = $1", [sessionId]);
+  // Guarded: a concurrent accept wins the row; the loser gets a clean 409.
+  const flipped = await query(
+    "UPDATE sessions SET status = 'rejected', updated_at = now() WHERE id = $1 AND status = 'requested' RETURNING id",
+    [sessionId]
+  );
+  if (!flipped.length) return { error: "Session is no longer requested.", status: 409 };
   await notify(s.seeker_id, "booking_rejected", `Your booking for "${s.skill_label}" was rejected.`, `/sessions/${sessionId}`);
   return { ok: true };
 }
@@ -119,15 +126,25 @@ export async function cancelBooking(sessionId: number, userId: number) {
     return { error: `Cannot cancel a ${s.status} session.`, status: 400 };
   }
   // Atomic: only the first concurrent cancel flips the state and releases.
+  // The refund decision uses the status AT FLIP TIME (the FOR UPDATE CTE row),
+  // not the earlier read - otherwise an accept that commits between our read
+  // and our UPDATE would be cancelled without refunding the reservation.
+  let conflict = false;
   await withTx(async (q) => {
-    const flipped = await q(
-      "UPDATE sessions SET status = 'cancelled', updated_at = now() WHERE id = $1 AND status IN ('requested','accepted') RETURNING status",
+    const rows = await q(
+      `WITH prev AS (
+         SELECT status FROM sessions WHERE id = $1 AND status IN ('requested','accepted') FOR UPDATE
+       )
+       UPDATE sessions SET status = 'cancelled', updated_at = now()
+         FROM prev WHERE sessions.id = $1
+       RETURNING prev.status AS prev_status`,
       [sessionId]
     );
-    if (!flipped.length) throw new Error("Session can no longer be cancelled.");
-    // Release the reservation only if the session had been accepted (refund).
-    if (s.status === "accepted") await releaseCreditsQ(q, s.seeker_id, sessionId, Number(s.credits));
+    if (!rows.length) { conflict = true; return; }
+    if (rows[0].prev_status === "accepted")
+      await releaseCreditsQ(q, s.seeker_id, sessionId, Number(s.credits));
   });
+  if (conflict) return { error: "Session can no longer be cancelled.", status: 409 };
   const other = s.seeker_id === userId ? s.provider_id : s.seeker_id;
   await notify(other, "booking_cancelled", `The session "${s.skill_label}" was cancelled.`, `/sessions/${sessionId}`);
   return { ok: true };
@@ -139,14 +156,16 @@ export async function completeSession(sessionId: number, userId: number) {
   if (!s || !isParticipant(s, userId)) return { error: "Session not found.", status: 404 };
   if (s.status !== "accepted") return { error: `Cannot complete a ${s.status} session.`, status: 400 };
   // Atomic: only the first concurrent complete flips the state and pays out.
+  let conflict = false;
   await withTx(async (q) => {
     const flipped = await q(
       "UPDATE sessions SET status = 'completed', updated_at = now() WHERE id = $1 AND status = 'accepted' RETURNING id",
       [sessionId]
     );
-    if (!flipped.length) throw new Error("Session is no longer accepted.");
+    if (!flipped.length) { conflict = true; return; }
     await transferCreditsQ(q, s.provider_id, sessionId, Number(s.credits));
   });
+  if (conflict) return { error: "Session is no longer accepted.", status: 409 };
   await notify(s.seeker_id, "session_completed", `"${s.skill_label}" is complete. Please rate your provider.`, `/sessions/${sessionId}`);
   await notify(s.provider_id, "session_completed", `"${s.skill_label}" is complete. You earned ${s.credits} credit(s). Please rate your seeker.`, `/sessions/${sessionId}`);
   return { ok: true };

@@ -69,7 +69,7 @@ granted at registration when the email is in `ADMIN_EMAILS`.
 
 Nine SRS tables plus one addition (`notifications`, needed by REQ-15; SRS
 Section 6 lists nine tables while the class diagram has ten classes). Full
-DDL: `db/migrations/001_init.sql` (+ `002_college_id_unique.sql`).
+DDL: `db/migrations/001_init.sql` (+ `002_college_id_unique.sql`, `003_token_version.sql`).
 
 - `users` — name, email (unique), college_id, password_hash, credits
   (`CHECK (credits >= 0)`), avg_rating, warnings, is_admin

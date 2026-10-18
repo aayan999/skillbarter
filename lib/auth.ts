@@ -74,11 +74,14 @@ export async function loginUser(email: string, password: string): Promise<Sessio
 }
 
 export async function createSessionCookie(user: SessionUser) {
+  const rows = await query("SELECT token_version FROM users WHERE id = $1", [user.id]);
+  const tv = rows.length ? Number(rows[0].token_version) : 0;
   const token = await new SignJWT({
     sub: String(user.id),
     name: user.name,
     email: user.email,
     admin: user.isAdmin,
+    tv,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -93,6 +96,9 @@ export async function createSessionCookie(user: SessionUser) {
 }
 
 export async function clearSessionCookie() {
+  // Revoke server-side too: bump token_version so replayed cookies die at once.
+  const user = await getSessionUser();
+  if (user) await query("UPDATE users SET token_version = token_version + 1 WHERE id = $1", [user.id]);
   (await cookies()).delete(COOKIE);
 }
 
@@ -102,8 +108,12 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secret());
+    const id = Number(payload.sub);
+    // Reject tokens issued before the user's last logout (token_version bump).
+    const rows = await query("SELECT token_version FROM users WHERE id = $1", [id]);
+    if (!rows.length || Number(rows[0].token_version) !== Number(payload.tv ?? -1)) return null;
     return {
-      id: Number(payload.sub),
+      id,
       name: String(payload.name),
       email: String(payload.email),
       isAdmin: Boolean(payload.admin),
