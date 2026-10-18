@@ -34,10 +34,13 @@ h1, h2, h3 { letter-spacing: -0.02em; font-weight: 600; }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 .topbar {
-  padding: 0.8rem 0; background: rgba(10, 10, 10, 0.45);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--border); flex-wrap: wrap;
+  padding: 1.25rem 0; background: transparent;
+  backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px);
+  transition: backdrop-filter 0.3s ease-in-out, -webkit-backdrop-filter 0.3s ease-in-out;
   position: sticky; top: 0; z-index: 50;
+}
+.topbar[data-scrolled="true"] {
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
 }
 .topbar-inner {
   display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;

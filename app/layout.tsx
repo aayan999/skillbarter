@@ -1,5 +1,6 @@
 import "./globals.css";
 import Link from "next/link";
+import Topbar from "@/components/Topbar";
 import { getSessionUser } from "@/lib/auth";
 import { getBalance } from "@/lib/services/wallet";
 
@@ -22,7 +23,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
       </head>
       <body>
-        <header className="topbar">
+        <Topbar>
         <div className="topbar-inner">
           <Link href="/" className="brand">
             Skill<span>Barter</span>
@@ -57,7 +58,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </>
           )}
         </div>
-        </header>
+        </Topbar>
         <main className="container">{children}</main>
       </body>
     </html>
