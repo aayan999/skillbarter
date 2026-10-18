@@ -44,7 +44,7 @@ An admin account is any registered email listed in `ADMIN_EMAILS`
 
 See `.env.example`. None are secrets in this repo; never commit `.env.local`.
 `DATABASE_URL`, `SESSION_SECRET`, `ADMIN_EMAILS`, the five `PUSHER_*` /
-`NEXT_PUBLIC_PUSHER_*` vars, and `UPLOAD_DIR`.
+`NEXT_PUBLIC_PUSHER_*` vars, the three `CLOUDINARY_*` vars, and `UPLOAD_DIR`.
 
 ## Folder structure
 
@@ -62,9 +62,10 @@ types, `tests/` vitest, `docs/` documentation.
 
 ## Known limitations (honest list)
 
-- **File storage is local disk** (`uploads/`). This does not persist on Vercel
-  serverless — deployment needs object storage (e.g. Vercel Blob or S3). Not
-  implemented.
+- **File storage needs Cloudinary in production.** With `CLOUDINARY_*` set,
+  uploads go to Cloudinary (authenticated delivery, signed URLs). Without
+  them the app falls back to local disk (`uploads/`), which does not persist
+  on serverless platforms like Vercel.
 - **Pusher is optional.** Without keys, chat polls every 3 s instead of
   delivering instantly.
 - **Session reminders** are generated when a user opens their dashboard

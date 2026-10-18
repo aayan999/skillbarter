@@ -91,7 +91,7 @@ export async function transferCredits(providerId: number, sessionId: number | nu
 export async function adminReverseCredits(
   providerId: number,
   seekerId: number,
-  sessionId: number,
+  sessionId: number | null,
   amount: number
 ): Promise<number> {
   return withTx(async (q) => {

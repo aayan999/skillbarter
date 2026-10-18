@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { listResources, createResource, sharingOpen } from "@/lib/services/resources";
 import { getSessionForParty } from "@/lib/services/chat";
+import { cloudinaryConfigured, uploadToCloudinary } from "@/lib/cloudinary";
+import { query as dbQuery } from "@/lib/db";
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -40,9 +42,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ ok: false, error: "File too large (25 MB max)." }, { status: 400 });
   const fileType = VIDEO_TYPES.includes(file.type) ? "video" : "file";
   const safeName = path.basename(file.name).replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120) || "upload";
+  const bytes = Buffer.from(await file.arrayBuffer());
+
+  if (cloudinaryConfigured()) {
+    const resourceId = await createResource(sessionId, user.id, fileType, safeName, file.size);
+    const publicId = await uploadToCloudinary(sessionId, resourceId, safeName, bytes);
+    await createResourceUpdateRef(resourceId, `cld:${publicId}`);
+    return NextResponse.json({ ok: true, id: resourceId, fileType, storage: "cloudinary" });
+  }
+
+  // Local disk fallback (zero-setup dev; does not persist on serverless).
   const resourceId = await createResource(sessionId, user.id, fileType, safeName, file.size);
   const dir = path.join(uploadRoot(), String(sessionId));
   await fs.mkdir(dir, { recursive: true });
-  await fs.writeFile(path.join(dir, `${resourceId}-${safeName}`), Buffer.from(await file.arrayBuffer()));
-  return NextResponse.json({ ok: true, id: resourceId, fileType });
+  await fs.writeFile(path.join(dir, `${resourceId}-${safeName}`), bytes);
+  return NextResponse.json({ ok: true, id: resourceId, fileType, storage: "local" });
+}
+
+async function createResourceUpdateRef(resourceId: number, ref: string) {
+  await dbQuery("UPDATE resources SET file_url = $1 WHERE id = $2", [ref, resourceId]);
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { getResource } from "@/lib/services/resources";
+import { cloudinaryConfigured, cloudinaryDownloadUrl } from "@/lib/cloudinary";
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -20,6 +21,16 @@ export async function GET(
   const { id, rid } = await params;
   const resource = await getResource(Number(id), Number(rid), user.id);
   if (!resource) return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
+
+  // Cloudinary-backed asset: only reachable after the participant check above,
+  // which is what keeps the file participant-only (SRS 5.3); the signed URL
+  // expires after 1 hour.
+  if (String(resource.file_url).startsWith("cld:")) {
+    if (!cloudinaryConfigured())
+      return NextResponse.json({ ok: false, error: "Storage not configured." }, { status: 500 });
+    return NextResponse.redirect(cloudinaryDownloadUrl(resource.file_url.slice(4)), 302);
+  }
+
   const root = process.env.UPLOAD_DIR || path.join(process.cwd(), "uploads");
   const filePath = path.join(root, String(id), `${resource.id}-${resource.file_name}`);
   try {

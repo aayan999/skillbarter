@@ -1,5 +1,9 @@
 // REQ-12: share notes/files and short recorded videos inside a session.
 // Same visibility rule as chat (SRS 5.3): participants only, after acceptance.
+// Storage: Cloudinary (lib/cloudinary.ts) when configured, else local disk.
+// file_url stores "cld:<public_id>" for Cloudinary assets, otherwise the
+// local API path — the download route resolves either form.
+
 import { query } from "../db";
 import { getSessionForParty } from "./chat";
 
@@ -29,7 +33,8 @@ export async function createResource(
   uploaderId: number,
   fileType: "file" | "video",
   fileName: string,
-  byteSize: number
+  byteSize: number,
+  storageRef?: string // "cld:<public_id>" for Cloudinary uploads
 ) {
   const rows = await query(
     `INSERT INTO resources (session_id, uploader_id, file_type, file_name, file_url, byte_size)
@@ -38,7 +43,7 @@ export async function createResource(
   );
   const id = Number(rows[0].id);
   await query("UPDATE resources SET file_url = $1 WHERE id = $2", [
-    `/api/sessions/${sessionId}/resources/${id}`,
+    storageRef ?? `/api/sessions/${sessionId}/resources/${id}`,
     id,
   ]);
   return id;

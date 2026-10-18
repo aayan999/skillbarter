@@ -136,7 +136,8 @@ Pusher Channels (`pusher`, `pusher-js`), bcrypt (`bcryptjs`), JWT (`jose`),
 zod (available), vitest. Env vars (names only; values live in `.env.local`,
 never committed): `DATABASE_URL`, `SESSION_SECRET`, `ADMIN_EMAILS`,
 `PUSHER_APP_ID`, `PUSHER_KEY`, `PUSHER_SECRET`, `PUSHER_CLUSTER`,
-`NEXT_PUBLIC_PUSHER_KEY`, `NEXT_PUBLIC_PUSHER_CLUSTER`, `UPLOAD_DIR`.
+`NEXT_PUBLIC_PUSHER_KEY`, `NEXT_PUBLIC_PUSHER_CLUSTER`, `UPLOAD_DIR`,
+`CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`.
 
 ## 9. How to run, test, deploy
 
@@ -169,12 +170,21 @@ never committed): `DATABASE_URL`, `SESSION_SECRET`, `ADMIN_EMAILS`,
 8. Skill categories are a fixed list (`types/index.ts`: Programming, Design,
    Academics, Communication, Productivity, General) — the SRS says
    "categorized" without naming categories.
+9. **Cloudinary for REQ-12 storage**: assets uploaded as `resource_type: raw`
+   (uniform for files and videos, no transformations) with delivery type
+   `authenticated`, so nothing is fetchable without a signed URL; the
+   participant check stays in the download route, preserving SRS 5.3.
+   Local disk remains the zero-setup dev fallback.
 
 ## 11. Known gaps and next steps
 
-1. **File storage is local disk** (`uploads/`): does not persist on Vercel
-   serverless. Next step: move `app/api/sessions/[id]/resources*` to object
-   storage (Vercel Blob or S3).
+1. **File storage: Cloudinary is implemented but untested with real keys.**
+   With `CLOUDINARY_*` env vars set, uploads are stored on Cloudinary as
+   `authenticated` raw assets and downloads are 302 redirects to signed URLs
+   (1-hour expiry) issued only after the participant check. Without the vars
+   the app falls back to local disk (`uploads/`), which does not persist on
+   serverless. The signed-URL generation path was exercised with dummy
+   credentials only; run one real upload/download after setting the keys.
 2. **Pusher untested with real keys** — only the polling fallback ran here.
 3. **No Vercel deployment performed**; deploy steps in section 9 are untested.
 4. Session reminders need a cron (e.g. Vercel Cron hitting a route that calls
