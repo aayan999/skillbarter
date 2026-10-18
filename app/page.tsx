@@ -93,7 +93,7 @@ export default async function Home() {
           <h1>
             You know something.
             <br />
-            <span className="grad-text">Someone here wants to learn it.</span>
+            <span className="grad-text">Someone here<br />wants to learn it.</span>
           </h1>
           <p className="lead">
             SkillBarter is a time-credit exchange for our campus. Teach an hour of Python,
