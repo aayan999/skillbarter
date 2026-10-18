@@ -34,11 +34,14 @@ h1, h2, h3 { letter-spacing: -0.02em; font-weight: 600; }
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 .topbar {
-  display: flex; align-items: center; gap: 1rem;
-  padding: 0.8rem 1.25rem; background: rgba(10, 10, 10, 0.45);
+  padding: 0.8rem 0; background: rgba(10, 10, 10, 0.45);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border); flex-wrap: wrap;
   position: sticky; top: 0; z-index: 50;
+}
+.topbar-inner {
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  max-width: 1080px; margin: 0 auto; padding: 0 1rem; width: 100%;
 }
 .topbar .brand { font-weight: 700; font-size: 1.5rem; letter-spacing: -0.02em; color: var(--text); }
 .topbar .brand span {

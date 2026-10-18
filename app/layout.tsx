@@ -23,6 +23,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         <header className="topbar">
+        <div className="topbar-inner">
           <Link href="/" className="brand">
             Skill<span>Barter</span>
           </Link>
@@ -55,6 +56,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               </nav>
             </>
           )}
+        </div>
         </header>
         <main className="container">{children}</main>
       </body>
