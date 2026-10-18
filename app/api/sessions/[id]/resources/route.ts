@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
-import { listResources, createResource, sharingOpen } from "@/lib/services/resources";
+import { listResources, createResource, sharingOpen, sanitizeFileName } from "@/lib/services/resources";
 import { getSessionForParty } from "@/lib/services/chat";
 import { cloudinaryConfigured, uploadToCloudinary } from "@/lib/cloudinary";
 import { query as dbQuery } from "@/lib/db";
@@ -38,10 +38,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const form = await req.formData();
   const file = form.get("file");
   if (!(file instanceof File)) return NextResponse.json({ ok: false, error: "No file." }, { status: 400 });
+  if (file.size === 0) return NextResponse.json({ ok: false, error: "File is empty." }, { status: 400 });
   if (file.size > MAX_BYTES)
     return NextResponse.json({ ok: false, error: "File too large (25 MB max)." }, { status: 400 });
   const fileType = VIDEO_TYPES.includes(file.type) ? "video" : "file";
-  const safeName = path.basename(file.name).replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120) || "upload";
+  const safeName = sanitizeFileName(file.name);
   const bytes = Buffer.from(await file.arrayBuffer());
 
   if (cloudinaryConfigured()) {

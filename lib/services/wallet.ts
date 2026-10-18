@@ -57,31 +57,39 @@ export async function grantRegistrationBonus(q: QueryFn, userId: number) {
 }
 
 // REQ-7 + REQ-8 — provider accepted: deduct and reserve from the seeker.
+// The *Q variants run inside a caller-managed transaction so session state and
+// credit movement commit or roll back together (no double-reserve races).
+export async function reserveCreditsQ(q: QueryFn, seekerId: number, sessionId: number | null, amount: number) {
+  const u = await lockUserForUpdate(q, seekerId);
+  if (Number(u.credits) < amount) throw new InsufficientCreditsError(amount, Number(u.credits));
+  await q("UPDATE users SET credits = credits - $1 WHERE id = $2", [amount, seekerId]);
+  await recordTx(q, seekerId, sessionId, -amount, "reserve", "Reserved on booking acceptance (REQ-7)");
+}
+
 export async function reserveCredits(seekerId: number, sessionId: number | null, amount: number) {
-  await withTx(async (q) => {
-    const u = await lockUserForUpdate(q, seekerId);
-    if (Number(u.credits) < amount) throw new InsufficientCreditsError(amount, Number(u.credits));
-    await q("UPDATE users SET credits = credits - $1 WHERE id = $2", [amount, seekerId]);
-    await recordTx(q, seekerId, sessionId, -amount, "reserve", "Reserved on booking acceptance (REQ-7)");
-  });
+  await withTx((q) => reserveCreditsQ(q, seekerId, sessionId, amount));
 }
 
 // Booking cancelled after acceptance: the reservation is released back.
+export async function releaseCreditsQ(q: QueryFn, seekerId: number, sessionId: number | null, amount: number) {
+  await lockUserForUpdate(q, seekerId);
+  await q("UPDATE users SET credits = credits + $1 WHERE id = $2", [amount, seekerId]);
+  await recordTx(q, seekerId, sessionId, amount, "release", "Reservation released on cancellation");
+}
+
 export async function releaseCredits(seekerId: number, sessionId: number | null, amount: number) {
-  await withTx(async (q) => {
-    await lockUserForUpdate(q, seekerId);
-    await q("UPDATE users SET credits = credits + $1 WHERE id = $2", [amount, seekerId]);
-    await recordTx(q, seekerId, sessionId, amount, "release", "Reservation released on cancellation");
-  });
+  await withTx((q) => releaseCreditsQ(q, seekerId, sessionId, amount));
 }
 
 // REQ-7 — session completed: the provider earns the reserved credits.
+export async function transferCreditsQ(q: QueryFn, providerId: number, sessionId: number | null, amount: number) {
+  await lockUserForUpdate(q, providerId);
+  await q("UPDATE users SET credits = credits + $1 WHERE id = $2", [amount, providerId]);
+  await recordTx(q, providerId, sessionId, amount, "earn", "Credits earned on session completion (REQ-7)");
+}
+
 export async function transferCredits(providerId: number, sessionId: number | null, amount: number) {
-  await withTx(async (q) => {
-    await lockUserForUpdate(q, providerId);
-    await q("UPDATE users SET credits = credits + $1 WHERE id = $2", [amount, providerId]);
-    await recordTx(q, providerId, sessionId, amount, "earn", "Credits earned on session completion (REQ-7)");
-  });
+  await withTx((q) => transferCreditsQ(q, providerId, sessionId, amount));
 }
 
 // REQ-19 — admin reverses credits (provider -> seeker) after a dispute.

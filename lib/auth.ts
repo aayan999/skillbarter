@@ -47,7 +47,10 @@ export async function registerUser(
       };
     });
   } catch (e: any) {
-    if (String(e?.message || "").toLowerCase().includes("unique")) {
+    const msg = String(e?.message || "").toLowerCase();
+    if (msg.includes("unique")) {
+      if (msg.includes("college_id"))
+        throw new Error("An account with this college ID already exists.");
       throw new Error("An account with this email already exists.");
     }
     throw e;

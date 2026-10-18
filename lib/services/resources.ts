@@ -7,6 +7,12 @@
 import { query } from "../db";
 import { getSessionForParty } from "./chat";
 
+// Strips path components and unsafe characters from uploaded filenames.
+export function sanitizeFileName(name: string): string {
+  const base = name.split(/[\\/]/).pop() || "upload";
+  return base.replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120) || "upload";
+}
+
 export async function listResources(sessionId: number, userId: number) {
   const s = await getSessionForParty(sessionId, userId);
   if (!s) return null;

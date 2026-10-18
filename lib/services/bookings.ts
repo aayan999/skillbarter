@@ -5,7 +5,7 @@
 //   accepted  -> completed (credits transferred, two-way rating opens)
 
 import { query, withTx } from "../db";
-import { reserveCredits, releaseCredits, transferCredits, InsufficientCreditsError } from "./wallet";
+import { reserveCreditsQ, releaseCreditsQ, transferCreditsQ, InsufficientCreditsError } from "./wallet";
 import { notify } from "./notifications";
 
 export { InsufficientCreditsError };
@@ -87,8 +87,16 @@ export async function acceptBooking(sessionId: number, providerId: number) {
   const s = await getSession(sessionId);
   if (!s || s.provider_id !== providerId) return { error: "Session not found.", status: 404 };
   if (s.status !== "requested") return { error: `Session is already ${s.status}.`, status: 400 };
-  await reserveCredits(s.seeker_id, sessionId, Number(s.credits)); // throws InsufficientCreditsError
-  await query("UPDATE sessions SET status = 'accepted', updated_at = now() WHERE id = $1", [sessionId]);
+  // Atomic: status flip + credit reservation commit together; a concurrent
+  // accept finds status != 'requested' and reserves nothing.
+  await withTx(async (q) => {
+    const flipped = await q(
+      "UPDATE sessions SET status = 'accepted', updated_at = now() WHERE id = $1 AND status = 'requested' RETURNING id",
+      [sessionId]
+    );
+    if (!flipped.length) throw new Error("Session is no longer requested.");
+    await reserveCreditsQ(q, s.seeker_id, sessionId, Number(s.credits)); // throws InsufficientCreditsError -> rolls back
+  });
   await notify(s.seeker_id, "booking_accepted", `Your booking for "${s.skill_label}" was accepted. Chat is now open.`, `/sessions/${sessionId}`);
   return { ok: true };
 }
@@ -107,14 +115,19 @@ export async function rejectBooking(sessionId: number, providerId: number) {
 export async function cancelBooking(sessionId: number, userId: number) {
   const s = await getSession(sessionId);
   if (!s || !isParticipant(s, userId)) return { error: "Session not found.", status: 404 };
-  if (s.status === "requested") {
-    await query("UPDATE sessions SET status = 'cancelled', updated_at = now() WHERE id = $1", [sessionId]);
-  } else if (s.status === "accepted") {
-    await releaseCredits(s.seeker_id, sessionId, Number(s.credits));
-    await query("UPDATE sessions SET status = 'cancelled', updated_at = now() WHERE id = $1", [sessionId]);
-  } else {
+  if (s.status !== "requested" && s.status !== "accepted") {
     return { error: `Cannot cancel a ${s.status} session.`, status: 400 };
   }
+  // Atomic: only the first concurrent cancel flips the state and releases.
+  await withTx(async (q) => {
+    const flipped = await q(
+      "UPDATE sessions SET status = 'cancelled', updated_at = now() WHERE id = $1 AND status IN ('requested','accepted') RETURNING status",
+      [sessionId]
+    );
+    if (!flipped.length) throw new Error("Session can no longer be cancelled.");
+    // Release the reservation only if the session had been accepted (refund).
+    if (s.status === "accepted") await releaseCreditsQ(q, s.seeker_id, sessionId, Number(s.credits));
+  });
   const other = s.seeker_id === userId ? s.provider_id : s.seeker_id;
   await notify(other, "booking_cancelled", `The session "${s.skill_label}" was cancelled.`, `/sessions/${sessionId}`);
   return { ok: true };
@@ -125,10 +138,15 @@ export async function completeSession(sessionId: number, userId: number) {
   const s = await getSession(sessionId);
   if (!s || !isParticipant(s, userId)) return { error: "Session not found.", status: 404 };
   if (s.status !== "accepted") return { error: `Cannot complete a ${s.status} session.`, status: 400 };
+  // Atomic: only the first concurrent complete flips the state and pays out.
   await withTx(async (q) => {
-    await q("UPDATE sessions SET status = 'completed', updated_at = now() WHERE id = $1 AND status = 'accepted'", [sessionId]);
+    const flipped = await q(
+      "UPDATE sessions SET status = 'completed', updated_at = now() WHERE id = $1 AND status = 'accepted' RETURNING id",
+      [sessionId]
+    );
+    if (!flipped.length) throw new Error("Session is no longer accepted.");
+    await transferCreditsQ(q, s.provider_id, sessionId, Number(s.credits));
   });
-  await transferCredits(s.provider_id, sessionId, Number(s.credits));
   await notify(s.seeker_id, "session_completed", `"${s.skill_label}" is complete. Please rate your provider.`, `/sessions/${sessionId}`);
   await notify(s.provider_id, "session_completed", `"${s.skill_label}" is complete. You earned ${s.credits} credit(s). Please rate your seeker.`, `/sessions/${sessionId}`);
   return { ok: true };
