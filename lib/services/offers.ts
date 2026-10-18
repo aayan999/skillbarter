@@ -17,7 +17,7 @@ export async function createOffer(
 }
 
 export async function listOffers(category?: string) {
-  const where = category ? "AND o.category = $2" : "";
+  const where = category ? "AND o.category = $1" : "";
   const params: unknown[] = category ? [category] : [];
   return query(
     `SELECT o.*, u.name AS provider_name, u.avg_rating AS provider_rating
@@ -60,7 +60,7 @@ export async function createRequest(
 }
 
 export async function listRequests(category?: string) {
-  const where = category ? "AND r.category = $2" : "";
+  const where = category ? "AND r.category = $1" : "";
   const params: unknown[] = category ? [category] : [];
   return query(
     `SELECT r.*, u.name AS seeker_name

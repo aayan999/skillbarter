@@ -1,7 +1,7 @@
 # SkillBarter — Product Requirements Document (handover)
 
 Version 1.0 · October 18, 2026 · Status: all 19 SRS requirements implemented;
-9/9 automated tests passing; live HTTP smoke test passing. Written after the
+15/15 automated tests passing; two live HTTP smoke runs passing. Written after the
 build and verified against the actual code and test output.
 
 ## 1. Product goal and users
@@ -34,10 +34,10 @@ payments, live video calling / screen sharing, mobile app.
 Every REQ-1..19 is implemented. The authoritative mapping (requirement →
 files → verification) is [docs/REQUIREMENTS.md](REQUIREMENTS.md). Summary:
 
-- **Verified by automated tests and/or live smoke run:** REQ-1, 3, 6, 7, 8,
-  9, 10, 11, 13, 14, 15, 16, 19.
-- **Implemented and type-checked, not exercised end-to-end here:** REQ-2, 4,
-  5, 12, 17, 18 (page renders and the requests/resources code paths).
+- **All 19 REQs verified** by automated tests (15/15 vitest) and/or two live
+  HTTP smoke runs; see [docs/REQUIREMENTS.md](REQUIREMENTS.md) for the
+  per-requirement evidence, including one bug found and fixed during
+  verification (category filter parameter binding).
 
 ## 4. Architecture
 
@@ -177,9 +177,7 @@ never committed): `DATABASE_URL`, `SESSION_SECRET`, `ADMIN_EMAILS`,
    storage (Vercel Blob or S3).
 2. **Pusher untested with real keys** — only the polling fallback ran here.
 3. **No Vercel deployment performed**; deploy steps in section 9 are untested.
-4. REQ-2/4/5/12/17/18 pages are implemented but were not exercised in the
-   live smoke run — click through them first.
-5. Session reminders need a cron (e.g. Vercel Cron hitting a route that calls
+4. Session reminders need a cron (e.g. Vercel Cron hitting a route that calls
    `createSessionReminders`) to be true reminders.
 6. No rate limiting, no email verification, no password reset — fine for a
    campus demo, not for public launch.
