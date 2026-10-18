@@ -51,7 +51,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               <div className="spacer" />
               <nav>
                 <Link href="/login">Log in</Link>
-                <Link href="/register">Register</Link>
+                <Link className="lp-nav-btn" href="/register">Register</Link>
               </nav>
             </>
           )}
