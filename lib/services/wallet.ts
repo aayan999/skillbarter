@@ -57,7 +57,7 @@ export async function grantRegistrationBonus(q: QueryFn, userId: number) {
 }
 
 // REQ-7 + REQ-8 — provider accepted: deduct and reserve from the seeker.
-export async function reserveCredits(seekerId: number, sessionId: number, amount: number) {
+export async function reserveCredits(seekerId: number, sessionId: number | null, amount: number) {
   await withTx(async (q) => {
     const u = await lockUserForUpdate(q, seekerId);
     if (Number(u.credits) < amount) throw new InsufficientCreditsError(amount, Number(u.credits));
@@ -67,7 +67,7 @@ export async function reserveCredits(seekerId: number, sessionId: number, amount
 }
 
 // Booking cancelled after acceptance: the reservation is released back.
-export async function releaseCredits(seekerId: number, sessionId: number, amount: number) {
+export async function releaseCredits(seekerId: number, sessionId: number | null, amount: number) {
   await withTx(async (q) => {
     await lockUserForUpdate(q, seekerId);
     await q("UPDATE users SET credits = credits + $1 WHERE id = $2", [amount, seekerId]);
@@ -76,7 +76,7 @@ export async function releaseCredits(seekerId: number, sessionId: number, amount
 }
 
 // REQ-7 — session completed: the provider earns the reserved credits.
-export async function transferCredits(providerId: number, sessionId: number, amount: number) {
+export async function transferCredits(providerId: number, sessionId: number | null, amount: number) {
   await withTx(async (q) => {
     await lockUserForUpdate(q, providerId);
     await q("UPDATE users SET credits = credits + $1 WHERE id = $2", [amount, providerId]);
