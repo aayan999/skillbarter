@@ -3,7 +3,7 @@
 // - REQ-7: reserve on provider acceptance, transfer on completion, release on cancel.
 // - REQ-8: balance never goes negative (CHECK constraint + FOR UPDATE guards).
 
-import { query, withTx, QueryFn } from "./db";
+import { query, withTx, QueryFn } from "../db";
 
 export class InsufficientCreditsError extends Error {
   constructor(

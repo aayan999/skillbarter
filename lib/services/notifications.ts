@@ -1,5 +1,5 @@
 // REQ-15: basic notifications (booking status updates, session reminders).
-import { query } from "./db";
+import { query } from "../db";
 
 export async function notify(
   userId: number,

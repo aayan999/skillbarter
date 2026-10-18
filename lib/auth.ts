@@ -5,7 +5,7 @@ import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { query, withTx } from "./db";
-import { grantRegistrationBonus } from "./wallet";
+import { grantRegistrationBonus } from "./services/wallet";
 
 const COOKIE = "sb_session";
 const encoder = new TextEncoder();
