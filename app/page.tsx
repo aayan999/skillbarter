@@ -87,6 +87,7 @@ export default async function Home() {
 
   return (
     <div className="lp">
+      <div className="lp-bg" aria-hidden="true" />
       <section className="lp-hero">
         <div className="lp-hero-text">
           <span className="lp-badge">For AISSMS IOIT students</span>
