@@ -1,7 +1,7 @@
 import "./globals.css";
 import Link from "next/link";
 import { getSessionUser } from "@/lib/auth";
-import { getBalance } from "@/lib/wallet";
+import { getBalance } from "@/lib/services/wallet";
 
 export const metadata = {
   title: "SkillBarter",
