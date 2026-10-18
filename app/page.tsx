@@ -84,6 +84,25 @@ export default async function Home() {
         </div>
       </section>
 
+      <section>
+        <h2 className="section-title">Take a look inside</h2>
+        <p className="section-sub">Real screens from the app, with demo data.</p>
+        <div className="shots">
+          <figure className="shot">
+            <img src="/screenshots/landing-offers.png" alt="Skill offers page listing campus offers like Python for beginners, acoustic guitar basics, Figma UI crash course and linear algebra exam prep" loading="lazy" />
+            <figcaption>Browse offers from students on campus, filtered by category.</figcaption>
+          </figure>
+          <figure className="shot">
+            <img src="/screenshots/landing-dashboard.png" alt="Dashboard showing credits available, reserved credits, active sessions and notifications" loading="lazy" />
+            <figcaption>Your dashboard: credits, sessions and notifications in one place.</figcaption>
+          </figure>
+          <figure className="shot">
+            <img src="/screenshots/landing-session.png" alt="A session page for Python for beginners with the built-in chat between the two students and the file sharing panel" loading="lazy" />
+            <figcaption>Every session has its own chat and file sharing, open to just the two of you.</figcaption>
+          </figure>
+        </div>
+      </section>
+
       <p className="landing-foot">
         SkillBarter is a campus project. Registration needs your college ID.
       </p>
